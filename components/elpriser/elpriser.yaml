@@ -1,0 +1,245 @@
+esphome:
+  framework:
+    type: esp-idf
+
+external_components:
+    - source: github://pr#8230
+      components: [i80, io_bus, ili9xxx, spi]
+      refresh: always
+    - source:
+        type: local
+        path: components
+
+elpriser:
+  id: elpriser_component
+#  timezone: "Europe/Copenhagen"
+
+time:
+  platform: sntp
+  id: time_
+
+http_request:
+  id: http_request_component  
+  buffer_size_rx: 8192
+  buffer_size_tx: 512
+  timeout: 20s
+  verify_ssl: false
+
+
+select:
+  - platform: template
+    id: region_
+    name: "Select Region"
+    optimistic: True
+    options: ["DK1", "DK2"]
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) {
+                elpriser->updateRegion(x);
+            }
+
+  - platform: template
+    id: distributor_
+    name: "Selected Distributor"
+    optimistic: True
+    options: ["Cerius"]
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) {
+                elpriser->updateDistributor(x);
+            }
+  
+text_sensor:
+
+  - platform: template
+    id: time_stamp_
+    name: "Timestamp"
+    on_value:
+      - script.execute:
+          id: update_time
+          timestr: !lambda 'return x;'
+
+  - platform: template
+    id: next_six_json_
+    on_value:
+      - script.execute:
+          id: update_table
+          json_data: !lambda 'return x;'
+          container_id: "table1_container"
+
+  - platform: template
+    id: best_six_json_
+    on_value:
+      - script.execute:
+          id: update_table
+          json_data: !lambda 'return x;'
+          container_id: "table2_container"
+
+sensor:
+  - platform: template
+    id: current_price_
+    name: "Current Price"
+    accuracy_decimals: 2
+    unit_of_measurement: "kr/kWh"
+    update_interval: 60s
+
+  - platform: template
+    id: current_hour_
+    name: "Current Hour"
+    accuracy_decimals: 0
+    unit_of_measurement: ""
+    update_interval: 60s
+
+  - platform: template
+    id: color_index_
+    name: "Color index"
+    accuracy_decimals: 0
+    unit_of_measurement: ""
+    update_interval: 60s
+    on_value:
+      - script.execute:
+          id: update_page
+
+number:
+  - platform: template
+    id: vat_
+    name: "Fee: Vat"
+    min_value: 0.00
+    max_value: 100.00
+    step: 0.05
+    mode: box
+    optimistic: True
+    initial_value: 25.0
+    unit_of_measurement: "%"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateVat(x); 
+
+  - platform: template
+    id: tax_
+    name: "Fee: tax"
+    min_value: 0.00
+    max_value: 100.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 0.7608
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateTax(x);
+
+  - platform: template
+    id: div_
+    name: "Fee: div"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 0.1030
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateDiv(x);
+
+  - platform: template
+    id: net_
+    name: "Fee: net"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 0.1248
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateNet(x);
+
+  - platform: template
+    id: limit1_
+    name: "Limit 1"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 1.50
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateLimit(0, x);
+
+  - platform: template
+    id: limit2_
+    name: "Limit 2"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 2.00
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateLimit(1, x);
+
+  - platform: template
+    id: limit3_
+    name: "Limit 3"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 2.50
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateLimit(2, x);
+
+  - platform: template
+    id: limit4_
+    name: "Limit 4"
+    min_value: 0.00
+    max_value: 10.00
+    step: 0.0001
+    mode: box
+    optimistic: True
+    initial_value: 3.00
+    unit_of_measurement: "kr/kWh"
+    on_value:
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->updateLimit(3, x);
+
+button:
+  - platform: template
+    id: bt_refresh
+    name: "Refresh"
+    on_press: 
+      then:
+        - lambda: |-
+            auto *elpriser = static_cast<esphome::elpriser::ELPRISER*>(id(elpriser_component));
+            if (elpriser) elpriser->refreshOnPress();
+        

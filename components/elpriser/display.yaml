@@ -1,0 +1,307 @@
+esphome:
+  framework:
+    type: esp-idf
+
+# ----- Display section - WT32 SC01 Plus -----
+#
+# Must hold script with 3 functions:
+#script:
+#  - id update_table        # is called when next_sex_ and best_sex are filled.
+#    parameters:
+#      json_data: string    # JSON array with next or best 6 hours
+#      container_id: string # Send containerens ID som string
+#      then:
+#        - lambda: |-
+#            //c++ code to place json data into container
+#  - id: update_page        # is called when current_price_ is filled.
+#      then:
+#        - lambda: |-
+#            //c++ code to place price on screen and set color
+#  - id: update_time        # is called on earch second
+#      parameters:
+#      timestr: string      # timestring (XX:XX:XX) to be displayed on screen
+#      then:
+#        - lambda: |-
+#            //c++ code to update time on screen
+
+script:
+    - id: update_table
+      parameters:
+        json_data: string
+        container_id: string
+      then:
+        - lambda: |-
+            lv_obj_t* container = nullptr;
+            if (container_id == "table1_container") {
+                container = id(table1_container);
+            } else if (container_id == "table2_container") {
+                container = id(table2_container);
+            }
+            if (container == nullptr) {
+                ESP_LOGE("update_table", "Fejl: Ukendt container ID: %s", container_id.c_str());
+                return;
+            }
+            static const struct ColorPair {
+                lv_color_t bg;
+                lv_color_t fg;
+            } options[] = {
+                {lv_color_hex(0x0000FF), lv_color_hex(0xFFFFFF)}, // Blå baggrund, hvid tekst
+                {lv_color_hex(0x00FF00), lv_color_hex(0x000000)}, // Grøn baggrund, sort tekst
+                {lv_color_hex(0xFFFF00), lv_color_hex(0x000000)}, // Gul baggrund, sort tekst
+                {lv_color_hex(0xFF0000), lv_color_hex(0xFFFFFF)}, // Rød baggrund, hvid tekst
+                {lv_color_hex(0x800080), lv_color_hex(0xFFFFFF)}  // Lilla baggrund, hvid tekst
+            };
+            // 🔹 Ryd containeren før vi tilføjer labels
+            lv_obj_clean(container);
+            // 🔹 Konstanter for tabellen
+            const int rows = 2;
+            const int cols = 7;
+            const int cell_width = 440 / cols;
+            const int cell_height = 35;
+            const char* row_labels[2] = {"Time:", "Kr/kWh"};
+            // 🔹 Midlertidige arrays til at lagre data
+            std::string times[6];
+            std::string prices[6];
+            int colorIndex[6];
+            // 🔹 JSON parsing
+            DynamicJsonDocument doc(2048);
+            deserializeJson(doc, json_data.c_str());
+            // 🔹 Læs JSON-data ind i arrays
+            for (int i = 0; i < 6; i++) {
+                int hour = doc[i]["hour"];
+                char time_buf[5];
+                snprintf(time_buf, sizeof(time_buf), "%02d", hour);
+                times[i] = std::string(time_buf);
+                colorIndex[i] = doc[i]["colorIndex"];
+                float price = doc[i]["price"];
+                char price_buf[10];
+                snprintf(price_buf, sizeof(price_buf), "%.2f", price);
+                prices[i] = std::string(price_buf);
+                ESP_LOGD("json", "Parsed Time: %d, Price: %0.2f, ColorIndex: %d", hour, price, colorIndex[i]);
+            }
+            // 🔹 Opret celler i tabellen
+            for (int row = 0; row < rows; row++) {
+                for (int col = 0; col < cols; col++) {
+                    // 📌 **Opret en container til cellen** (for at kunne style baggrundsfarve)
+                    lv_obj_t *cell_container = lv_obj_create(container);
+                    lv_obj_set_size(cell_container, cell_width, cell_height);
+                    // **Juster cellens præcise placering**
+                    lv_obj_align_to(cell_container, container, LV_ALIGN_TOP_LEFT, col * cell_width-12, row * cell_height-16);
+                    lv_obj_t *cell_label = lv_label_create(cell_container);
+                    lv_obj_align(cell_label, LV_ALIGN_CENTER, 0, 0);  // Centrer teksten i cellen
+                    // **Kolonne 0: Overskrifter**
+                    if (col == 0) {
+                        lv_label_set_text(cell_label, row_labels[row]);
+                        lv_obj_set_style_bg_color(cell_container, lv_color_hex(0xDDDDDD), LV_PART_MAIN); // Grå baggrund for overskrifter
+                        lv_obj_set_style_text_color(cell_label, lv_color_black(), LV_PART_MAIN);
+                    } else {
+                        if (row == 0) {
+                            lv_label_set_text(cell_label, times[col - 1].c_str());
+                        } else {
+                            lv_label_set_text(cell_label, prices[col - 1].c_str());
+                        }
+                        // **Sæt baggrunds- og tekstfarve ud fra colorIndex**
+                        int index = colorIndex[col - 1];  // Brug col - 1 for at matche dataindeks
+                        if (index < 0) index = 0;
+                        if (index > 4) index = 4; // Sikrer at index er inden for det tilladte interval
+                        lv_obj_set_style_bg_color(cell_container, options[index].bg, LV_PART_MAIN);
+                        lv_obj_set_style_text_color(cell_label, options[index].fg, LV_PART_MAIN);
+                    }
+                    // **Fjern padding og margin**
+                    lv_obj_set_style_pad_all(cell_container, 0, LV_PART_MAIN);
+                    lv_obj_set_style_pad_all(cell_label, 0, LV_PART_MAIN);
+                    lv_obj_set_style_radius(cell_container, 0, LV_PART_MAIN);
+                    lv_obj_set_style_radius(cell_label, 0, LV_PART_MAIN);
+                }
+            }
+            // 🔹 Sæt border og fjern scrollbars
+            //lv_obj_set_style_border_color(container, lv_color_white(), LV_PART_MAIN);
+            lv_obj_set_style_border_width(container, 0, LV_PART_MAIN);
+            lv_obj_set_style_radius(container, 0, LV_PART_MAIN);
+            lv_obj_set_scrollbar_mode(container, LV_SCROLLBAR_MODE_OFF);
+            lv_obj_set_style_bg_opa(container, LV_OPA_TRANSP, LV_PART_MAIN);
+            // 🔹 Tving UI til at opdatere
+            lv_obj_invalidate(container);
+            lv_refr_now(NULL);
+
+    - id: update_page
+      then:
+        - lambda: |-
+            static const struct ColorPair {
+                lv_color_t bg;
+                lv_color_t fg;
+            } options[] = {
+                {lv_color_hex(0x0000FF), lv_color_hex(0xFFFFFF)}, // Blå baggrund, hvid tekst
+                {lv_color_hex(0x00FF00), lv_color_hex(0x000000)}, // Grøn baggrund, sort tekst
+                {lv_color_hex(0xFFFF00), lv_color_hex(0x000000)}, // Gul baggrund, sort tekst
+                {lv_color_hex(0xFF0000), lv_color_hex(0xFFFFFF)}, // Rød baggrund, hvid tekst
+                {lv_color_hex(0x800080), lv_color_hex(0xFFFFFF)}  // Lilla baggrund, hvid tekst
+            };
+            int index = static_cast<int>(id(color_index_).state);
+            index = std::max(0, std::min(index, 4));
+            ESP_LOGD("colors", "Selected index: %d", index);
+            lv_obj_set_style_bg_color(id(bg_container), options[index].bg, LV_PART_MAIN);
+            lv_obj_set_style_bg_opa(id(bg_container), LV_OPA_COVER, LV_PART_MAIN);
+            lv_obj_refresh_style(id(bg_container), LV_PART_MAIN, static_cast<lv_style_prop_t>(LV_STYLE_PROP_ALL));
+            lv_obj_set_style_text_color(id(my_clock), options[index].fg, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(table1_header), options[index].fg, LV_PART_MAIN);
+            lv_obj_set_style_text_color(id(table2_header), options[index].fg, LV_PART_MAIN);
+            lv_obj_invalidate(id(bg_container));
+            lv_refr_now(NULL);
+
+    - id: update_time
+      parameters:
+        timestr: string
+      then:
+        - lambda: |-
+            lv_label_set_text(id(my_clock), timestr.c_str());
+
+font:
+  - &font_common
+    file: "fonts/Roboto-Regular.ttf"
+    glyphs: ${font_mask}
+    id: roboto8
+    size: 8
+  - <<: *font_common
+    id: roboto12
+    size: 12
+  - <<: *font_common
+    id: roboto16
+    size: 16
+  - <<: *font_common
+    id: roboto20
+    size: 20
+  - <<: *font_common
+    id: roboto24
+    size: 24
+  - <<: *font_common
+    id: roboto32
+    size: 32
+  - <<: *font_common
+    id: roboto42
+    size: 42
+  - <<: *font_common
+    id: roboto62
+    size: 62
+  - <<: *font_common
+    id: roboto72
+    size: 72
+
+  - &font_bold
+    file: "fonts/Roboto-Bold.ttf"
+    glyphs: ${font_mask}
+    id: roboto8b
+    size: 8
+  - <<: *font_bold
+    id: roboto12b
+    size: 12
+  - <<: *font_bold
+    id: roboto24b
+    size: 24
+  - <<: *font_bold
+    id: roboto32b
+    size: 32
+
+i80:
+  dc_pin:
+    ignore_strapping_warning: true
+    number: 0
+  data_pins:
+    - 9
+    - ignore_strapping_warning: true
+      number: 46
+    - ignore_strapping_warning: true
+      number: 3
+    - 8
+    - 18
+    - 17
+    - 16
+    - 15
+  wr_pin: 47
+
+display:
+  - platform: ili9xxx
+    model: ST7796
+    bus_type: i80
+    reset_pin: GPIO4
+    dimensions:
+      width: 480
+      height: 320
+    transform:
+      swap_xy: true
+      mirror_x: true
+      mirror_y: true
+    color_order: bgr
+    invert_colors: true
+
+i2c:
+  sda: 6
+  scl: 5
+  scan: true
+
+touchscreen:
+  - platform: ft63x6
+    id: my_touchscreen
+    interrupt_pin: 7
+    transform:
+      swap_xy: true
+      mirror_x: false
+      mirror_y: true
+
+output:
+  - id: backlight_pwm
+    platform: ledc
+    pin: GPIO45
+
+light:
+  - id: backlight
+    platform: monochromatic
+    output: backlight_pwm
+    name: Display Backlight
+    restore_mode: ALWAYS_ON
+
+lvgl:
+  buffer_size: 10%
+  pages:
+    - id: main_page
+      widgets:
+        - obj:
+            id: bg_container
+            width: 480
+            height: 320
+            widgets:
+              - label:
+                  id: my_clock
+                  text_color: black
+                  text_font: roboto72
+                  y: -100
+                  x: 0
+                  align: LV_ALIGN_CENTER
+              - label:
+                  id: table1_header
+                  text: "Kommende timer"
+                  text_color: black
+                  text_font: roboto24
+                  y: -172
+                  x: 0
+                  align: BOTTOM_MID
+              - obj:
+                    id: table1_container
+                    width: 444
+                    height: 70
+                    align: BOTTOM_MID
+                    y: -100
+              - label:
+                  id: table2_header
+                  text: "Bedste timer"
+                  text_color: black
+                  text_font: roboto24
+                  y: -72
+                  x: 0
+                  align: BOTTOM_MID
+              - obj:
+                  id: table2_container
+                  width: 444
+                  height: 70
+                  align: BOTTOM_MID
+                  y: 0
