@@ -5,7 +5,7 @@ This is just another way to implement 'Electricity Prices' for the Northern Mark
 
 This implementation uses a TW32 SC01 Plus to display Time along with the next 6 hour electricity price and the best next 6 hours.
 
-Other displays can be implementet.
+Other displays can be implemented.
 
 The screen is colored according to the price:
 
@@ -22,7 +22,7 @@ Copy the 'fonts' folder and the 'elpriser.yaml' file to your HomeAssistant folde
 
 Install on a TW32 SC01 Plus device.
 
-The 'NextSix' and 'BestSix' entities have a JSON string with a table of the next and best six houses. The string looks like this:
+The 'NextSix' and 'BestSix' entities have a JSON string with a table of the next and best six hours. The string looks like this:
 
 [{"month": 6, "day" : 20, "hour": 11, "price": 1.345},{"month": 6, "day" : 20, "hour": 12, "price": 1.345},{"month": 6, "day" :hour" :hour": 2 1.345},{"month": 6, "day" : 20, "hour": 14, "price": 1.345},{"month": 6, "day": 20, "hour": 15, "price": 1.345},{"month": "t": 6, " "price": 1.345}]
 
