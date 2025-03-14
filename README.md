@@ -18,7 +18,7 @@ The screen is colored according to the price:
 ## Installation:
 Copy the contents of the 'components' folder to your HomeAssistant folder: esphome/components
 
-Copy the 'fonts' folder and the 'elpriser.yaml' file to your HomeAssistant folder: components.
+Copy the 'fonts' folder and the 'elpriser.yaml' file to your HomeAssistant folder: esphome/
 
 Install on a TW32 SC01 Plus device.
 
