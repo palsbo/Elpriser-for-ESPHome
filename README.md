@@ -1,6 +1,7 @@
 # Electricity Prices for ESPHome
 ![Screenshot](TW32.jpg)
-This is just another way to implement 'Electricity Prices' for the Northern Market in HomeAssistant using ESPHome.
+
+This is just another way to implement 'Electricity Prices' for the Northern Market in HomeAssistant using ESPHome. Other displays can be implementet.
 
 This implementation uses a TW32 SC01 Plus to display Time along with the next 6 hour electricity price and the best next 6 hours.
 
