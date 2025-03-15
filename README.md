@@ -1,9 +1,9 @@
 # Electricity Prices for ESPHome
-![Screenshot](TW32.jpg)
+![Screenshot](WT32.jpg)
 
 This is just another way to implement 'Electricity Prices' for the Northern Market in HomeAssistant using ESPHome. 
 
-This implementation uses a TW32 SC01 Plus to display Time along with the next 6 hour electricity price and the best next 6 hours.
+This implementation uses a WT32 SC01 Plus to display Time along with the next 6 hour electricity price and the best next 6 hours.
 
 Other displays can be implemented.
 
@@ -20,7 +20,7 @@ Copy the contents of the 'components' folder to your HomeAssistant folder: espho
 
 Copy the 'fonts' folder and the 'elpriser.yaml' file to your HomeAssistant folder: esphome/
 
-Install on a TW32 SC01 Plus device.
+Install on a WT32 SC01 Plus device.
 
 The 'NextSix' and 'BestSix' entities have a JSON string with a table of the next and best six hours. The string looks like this:
 
